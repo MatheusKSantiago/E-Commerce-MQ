@@ -57,4 +57,14 @@ public class EstoqueService {
         });
         rabbitTemplate.convertAndSend("ecommercemq-direct-x","estoqueReservaCreate-routing-key",estoqueReserva);
     }
+    @RabbitListener(queues="estoqueReserva-DLQ")
+    @Transactional
+    public void reporEstoque(EstoqueReserva estoqueReserva){
+        estoqueReserva.conteudo_reservado.forEach((key,value)->{
+            produtoRepository.findProdutoById(key).ifPresent(p->{
+                p.setQuantidade(p.getQuantidade() + value);
+                produtoRepository.save(p);
+            });
+        });
+    }
 }

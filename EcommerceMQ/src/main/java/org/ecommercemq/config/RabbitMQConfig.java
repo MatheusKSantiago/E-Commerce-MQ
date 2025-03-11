@@ -1,10 +1,7 @@
 package org.ecommercemq.config;
 
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -32,15 +29,29 @@ public class RabbitMQConfig {
     public Queue pedidosQueue(){
         return new Queue("pedidoQueue",true);
     }
+    @Bean
+    public Queue dlqEstoqueReserva(){
+        return new Queue("estoqueReserva-DLQ",true);
+    }
 
     @Bean
     public Queue estoqueReservaQueue(){
-        return new Queue("estoqueReservaQueue",true);
+        return QueueBuilder
+                .durable("estoqueReservaQueue")
+                .ttl(10 * 1000) // 3 minutos
+                .deadLetterExchange("estoque-reserva-dlx")
+                .deadLetterRoutingKey("estoque-reserva-dlq-routing-key")
+                .build();
     }
     @Bean
     public DirectExchange directExchange(){
         return new DirectExchange("ecommercemq-direct-x");
     }
+    @Bean
+    public DirectExchange dlxEstoqueDirectExchange(){
+        return new DirectExchange("estoque-reserva-dlx");
+    }
+
     @Bean
     public Binding pedidoDirectBinding(){
         return BindingBuilder.bind(pedidosQueue()).to(directExchange()).with("pedidoCreate-routing-key");
@@ -48,5 +59,9 @@ public class RabbitMQConfig {
     @Bean
     public Binding estoqueReservaDirectBinding(){
         return BindingBuilder.bind(estoqueReservaQueue()).to(directExchange()).with("estoqueReservaCreate-routing-key");
+    }
+    @Bean
+    public Binding estoqueReservaDlqBinding(){
+        return BindingBuilder.bind(dlqEstoqueReserva()).to(dlxEstoqueDirectExchange()).with("estoque-reserva-dlq-routing-key");
     }
 }
