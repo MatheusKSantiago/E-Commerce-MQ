@@ -18,6 +18,16 @@ public class Produto {
     private BigDecimal preco;
     private Integer quantidade;
 
+    public int reservar(Integer quantidade){
+        if(this.quantidade >= quantidade){
+            this.quantidade -= quantidade;
+            return quantidade;
+        }else{
+            var reservou = this.quantidade;
+            this.quantidade = 0;
+            return reservou;
+        }
+    }
     public Integer getQuantidade() {
         return quantidade;
     }

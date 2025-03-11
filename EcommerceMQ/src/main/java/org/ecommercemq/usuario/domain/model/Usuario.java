@@ -92,6 +92,9 @@ public class Usuario implements UserDetails {
         return senha;
     }
 
+    public UUID getId() {
+        return id;
+    }
 
     public TiposUsuario getTipoUsuario() {
         return tipoUsuario;

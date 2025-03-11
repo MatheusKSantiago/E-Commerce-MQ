@@ -43,10 +43,10 @@ public class EstoqueController {
         return ResponseEntity.ok(estoqueService.buscarProdutosPaginados(pagina.orElse(0)));
     }
 
-    @Operation(summary = "Salvar produto")
-    @PostMapping("/produto")
-    public ResponseEntity<Void> salvarProduto(@RequestBody @Valid ProdutoDTO produto){
-        estoqueService.salvarProduto(ProdutoMapper.fromDto(produto));
+    @Operation(summary = "Salvar produtos")
+    @PostMapping("/produtos")
+    public ResponseEntity<Void> salvarProdutos(@RequestBody @Valid List<ProdutoDTO> produtos){
+        estoqueService.salvarProdutos(produtos.stream().map(ProdutoMapper::fromDto).toList());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
