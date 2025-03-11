@@ -38,7 +38,7 @@ public class RabbitMQConfig {
     public Queue estoqueReservaQueue(){
         return QueueBuilder
                 .durable("estoqueReservaQueue")
-                .ttl(10 * 1000) // 3 minutos
+                .ttl(180 * 1000) // 3 minutos
                 .deadLetterExchange("estoque-reserva-dlx")
                 .deadLetterRoutingKey("estoque-reserva-dlq-routing-key")
                 .build();
