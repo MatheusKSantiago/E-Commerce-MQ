@@ -13,6 +13,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableRabbit
 public class RabbitMQConfig {
+    public final static String PEDIDOS_QUEUE = "pedidos";
+    public final static String ESTOQUE_RESERVA_QUEUE = "estoque.reserva";
+    public final static String ESTOQUE_RESERVA_CANCELADA_QUEUE = "estoque.reserva.cancelada";
+    public final static String ESTOQUE_RESERVA_STATUS_QUEUE = "estoque.reserva.status";
+    public final static String PAGAMENTO_STATUS_QUEUE = "pagamento.status";
+    public final static String NOTIFICACAO_ESTOQUE_STATUS_QUEUE = "notificacao.estoque.status";
+    public final static String NOTIFICACAO_PAGAMENTO_STATUS_QUEUE = "notificacao.pagamento.status";
+
     @Bean
     public MessageConverter jsonMessageConverter(){
         return new Jackson2JsonMessageConverter();
@@ -27,41 +35,85 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue pedidosQueue(){
-        return new Queue("pedidoQueue",true);
+        return new Queue(PEDIDOS_QUEUE,true);
     }
     @Bean
-    public Queue dlqEstoqueReserva(){
-        return new Queue("estoqueReserva-DLQ",true);
+    public Queue estoqueReservaCancelada(){
+        return new Queue(ESTOQUE_RESERVA_CANCELADA_QUEUE,true);
     }
 
     @Bean
     public Queue estoqueReservaQueue(){
         return QueueBuilder
-                .durable("estoqueReservaQueue")
-                .ttl(180 * 1000) // 3 minutos
-                .deadLetterExchange("estoque-reserva-dlx")
+                .durable(ESTOQUE_RESERVA_QUEUE)
+                .ttl(40 * 1000)
+                .deadLetterExchange("estoque.reserva-dlx")
                 .deadLetterRoutingKey("estoque-reserva-dlq-routing-key")
                 .build();
     }
     @Bean
+    public Queue estoqueStatus(){
+        return new Queue(ESTOQUE_RESERVA_STATUS_QUEUE,true);
+    }
+    @Bean
+    public Queue pagamentoStatus(){
+        return new Queue(PAGAMENTO_STATUS_QUEUE,true);
+    }
+    @Bean
+    public Queue notificacaoEstoqueStatus(){
+        return new Queue(NOTIFICACAO_ESTOQUE_STATUS_QUEUE,true);
+    }
+    @Bean
+    public Queue notificacaoPagamentoStatus(){
+        return new Queue(NOTIFICACAO_PAGAMENTO_STATUS_QUEUE,true);
+    }
+    @Bean
     public DirectExchange directExchange(){
-        return new DirectExchange("ecommercemq-direct-x");
+        return new DirectExchange("ecommercemq.direct");
     }
     @Bean
     public DirectExchange dlxEstoqueDirectExchange(){
-        return new DirectExchange("estoque-reserva-dlx");
+        return new DirectExchange("estoque.reserva-dlx");
+    }
+    @Bean
+    public TopicExchange topicExchange(){
+        return new TopicExchange("ecommercemq.topic");
+    }
+    @Bean
+    public FanoutExchange fanoutExchange(){
+        return new FanoutExchange("pagamento.fanout");
     }
 
     @Bean
     public Binding pedidoDirectBinding(){
-        return BindingBuilder.bind(pedidosQueue()).to(directExchange()).with("pedidoCreate-routing-key");
+        return BindingBuilder.bind(pedidosQueue()).to(directExchange()).with("pedido.create");
+    }
+
+    @Bean
+    public Binding estoqueStatusTopicBinding(){
+        return BindingBuilder.bind(estoqueStatus()).to(topicExchange()).with("estoque.reserva.#");
     }
     @Bean
-    public Binding estoqueReservaDirectBinding(){
-        return BindingBuilder.bind(estoqueReservaQueue()).to(directExchange()).with("estoqueReservaCreate-routing-key");
+    public Binding notificacaoEstoqueTopicBinding(){
+        return BindingBuilder.bind(notificacaoEstoqueStatus()).to(topicExchange()).with("estoque.reserva.#");
     }
+
+    @Bean
+    public Binding estoqueReservaTopicBinding(){
+        return BindingBuilder.bind(estoqueReservaQueue()).to(topicExchange()).with("estoque.reserva.confirm");
+    }
+
     @Bean
     public Binding estoqueReservaDlqBinding(){
-        return BindingBuilder.bind(dlqEstoqueReserva()).to(dlxEstoqueDirectExchange()).with("estoque-reserva-dlq-routing-key");
+        return BindingBuilder.bind(estoqueReservaCancelada()).to(dlxEstoqueDirectExchange()).with("estoque-reserva-dlq-routing-key");
+    }
+
+    @Bean
+    public Binding estoqueStatusFanoutBinding(){
+        return BindingBuilder.bind(pagamentoStatus()).to(fanoutExchange());
+    }
+    @Bean
+    public Binding notificacaoPagamentoStatusFanoutBinding(){
+        return BindingBuilder.bind(notificacaoPagamentoStatus()).to(fanoutExchange());
     }
 }

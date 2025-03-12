@@ -1,8 +1,10 @@
 package org.ecommercemq.estoque.domain.service;
 
+import org.ecommercemq.config.RabbitMQConfig;
 import org.ecommercemq.estoque.domain.exception.EstoqueInsuficienteException;
 import org.ecommercemq.estoque.domain.exception.EstoqueProdutoNaoEncontradoException;
 import org.ecommercemq.estoque.domain.model.EstoqueReserva;
+import org.ecommercemq.estoque.domain.model.EstoqueStatus;
 import org.ecommercemq.estoque.domain.model.Produto;
 import org.ecommercemq.estoque.domain.repository.ProdutoRepository;
 import org.ecommercemq.pedido.domain.model.Pedido;
@@ -35,29 +37,31 @@ public class EstoqueService {
         produtoRepository.saveAll(produtos);
     }
 
-    @RabbitListener(queues = "pedidoQueue")
+    @RabbitListener(queues = RabbitMQConfig.PEDIDOS_QUEUE)
     @Transactional
     public void processarPedido(Pedido pedido){
-        StringBuffer notificarProblemaComPedido = new StringBuffer();
-        EstoqueReserva estoqueReserva = new EstoqueReserva();
-        estoqueReserva.pedido_id = pedido.getId();
-        pedido.getConteudoPedido().forEach((key, value) -> {
-                produtoRepository.findProdutoById(key).ifPresentOrElse(
-                        p ->{
-                            var reservou = p.reservar(value);
-                            if(reservou != value){
-                                notificarProblemaComPedido.append(
-                                        String.format("Produto: %s, Solicitado: %d, Disponível: %d \n",p.getNome(),value,reservou));
-                            }
-                            estoqueReserva.total_pagar = estoqueReserva.total_pagar.add(p.getPreco().multiply(BigDecimal.valueOf(reservou)));
-                            estoqueReserva.conteudo_reservado.put(key,reservou);
+        StringBuffer observacoes = new StringBuffer();
+        EstoqueReserva estoqueReserva = new EstoqueReserva(pedido.getId());
+
+        pedido.getConteudoPedido().forEach((produto_id, quantidade_pedido) -> {
+                produtoRepository.findProdutoById(produto_id).ifPresentOrElse(
+                        produto ->{
+                            reservar(estoqueReserva,produto,quantidade_pedido,observacoes,produto_id);
                         },
-                        ()-> notificarProblemaComPedido.append(String.format("Produto com id: %s, não foi encontrado\n",key))
+                        ()-> observacoes.append(String.format("Produto com id: %s, não foi encontrado\n",produto_id))
                 );
         });
-        rabbitTemplate.convertAndSend("ecommercemq-direct-x","estoqueReservaCreate-routing-key",estoqueReserva);
+
+        String routingKey = "estoque.reserva.confirm";
+        if(estoqueReserva.total_pagar.compareTo(BigDecimal.ZERO) == 0){
+            estoqueReserva.status = EstoqueStatus.PEDIDO_NULO;
+            routingKey = "estoque.reserva";
+        }
+        estoqueReserva.observacoes = observacoes.toString();
+        rabbitTemplate.convertAndSend("ecommercemq.topic",routingKey,estoqueReserva);
+
     }
-    @RabbitListener(queues="estoqueReserva-DLQ")
+    @RabbitListener(queues= RabbitMQConfig.ESTOQUE_RESERVA_CANCELADA_QUEUE)
     @Transactional
     public void reporEstoque(EstoqueReserva estoqueReserva){
         estoqueReserva.conteudo_reservado.forEach((key,value)->{
@@ -66,5 +70,18 @@ public class EstoqueService {
                 produtoRepository.save(p);
             });
         });
+    }
+
+    private void reservar(EstoqueReserva estoqueReserva,Produto produto,Integer quantidade_pedido,
+                         StringBuffer observacoes,UUID produto_id){
+
+        var reservou = produto.reservar(quantidade_pedido);
+        if(reservou != quantidade_pedido){
+            estoqueReserva.status = EstoqueStatus.PEDIDO_PARCIAL;
+            observacoes.append(
+                    String.format("Produto: %s, Solicitado: %d, Disponível: %d \n",produto.getNome(),quantidade_pedido,reservou));
+        }
+        estoqueReserva.total_pagar = estoqueReserva.total_pagar.add(produto.getPreco().multiply(BigDecimal.valueOf(reservou)));
+        estoqueReserva.conteudo_reservado.put(produto_id,reservou);
     }
 }

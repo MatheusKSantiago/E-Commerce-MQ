@@ -26,6 +26,7 @@ public class SecurityConfig {
                     auth
                             .requestMatchers("/api/estoque/produtos/*").permitAll()
                             .requestMatchers("/api/usuario/criar/cliente").permitAll()
+                            .requestMatchers("/api/pagamento").permitAll()
                             .anyRequest().authenticated();
                 })
                 .headers(h ->{

@@ -1,8 +1,9 @@
 package org.ecommercemq.pedido.domain.model;
 
 import jakarta.persistence.*;
-import org.ecommercemq.usuario.domain.model.PedidoStatus;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,10 +22,15 @@ public class Pedido {
     private Map<UUID, Integer> conteudoPedido;
 
     @Enumerated(value = EnumType.STRING)
-    private PedidoStatus status;
+    @ElementCollection
+    @CollectionTable(name = "pedido_status_historico", joinColumns = @JoinColumn(name = "pedido_id"))
+    private List<PedidoStatus> status;
+
+    private ZonedDateTime feitoEm;
     @PrePersist
-    public void statusInicio(){
-        this.status = PedidoStatus.ESPERANDO;
+    public void pedidoInit(){
+        status = List.of(PedidoStatus.INICIO);
+        feitoEm = ZonedDateTime.now();
     }
 
     public UUID getId() {
@@ -39,9 +45,7 @@ public class Pedido {
         return conteudoPedido;
     }
 
-    public PedidoStatus getStatus() {
-        return status;
-    }
+
 
     public void setCliente_id(UUID cliente_id) {
         this.cliente_id = cliente_id;
@@ -51,7 +55,11 @@ public class Pedido {
         this.conteudoPedido = conteudoPedido;
     }
 
-    public void setStatus(PedidoStatus status) {
+    public List<PedidoStatus> getStatus() {
+        return status;
+    }
+
+    public void setStatus(List<PedidoStatus> status) {
         this.status = status;
     }
 }
