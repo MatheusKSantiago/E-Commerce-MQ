@@ -2,9 +2,11 @@
 
 Projeto criado com o intuito de praticar conhecimentos em mensageria com RabbitMQ
 
-## Diagrama
+## Diagrama de Mensagens
 ![diagrama de arquitetura de mensagens](Diagrama%20EcommerceMQ.png)
 
+## Diagrama ER
+![diagrama entidade relacionamento ](Diagrama%20ER.png)
 ## Instruções
 
 ### 1. Configure o ambiente
